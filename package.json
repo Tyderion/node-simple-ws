@@ -1,9 +1,9 @@
 {
-  "name": "angular-websockets",
-  "version": "0.0.0",
-  "description": "My classy module",
+  "name": "node-simple-ws",
+  "version": "0.1.0",
+  "description": "Simple Wrapper over ws to use Websockets to easily with ng-websockets-apps",
   "license": "MIT",
-  "repository": "tyderion/angular-websockets",
+  "repository": "tyderion/node-simple-ws",
   "author": {
     "name": "Gabriel Nadler",
     "email": "nadler.gabriel@gmail.com",
@@ -34,6 +34,9 @@
     "envs": [
       "node",
       "mocha"
+    ],
+    "ignores": [
+      "out/**"
     ],
     "rules": {
       "space-before-function-paren": [

@@ -2,35 +2,49 @@
 
 var WebSocketServer = require('ws').Server;
 /**
- *
- *
+ * Simple IMplementiation
+ * @module node-simple-ws
+ * @exports SimpleServer
+ * @see {@link SimpleServer}
  */
-module.exports = function(wsConf) {
+module.exports = SimpleServer;
+
+/**
+ * Simple Websockets with event names
+ * @class SimpleServer
+ * @param wsConf the Configuration for the underlying ws server
+ */
+function SimpleServer(wsConf) {
+    if (!(this instanceof SimpleServer)) {
+        return new SimpleServer(wsConf);
+    }
     var wss = new WebSocketServer(wsConf);
-    wss.on('connection', onConnection);
-    var EVENTS = {
+    var handlers = {};
+    var clients = [];
+
+    wss.on('connection', onConnection.bind(this));
+    /**
+     * Contains all special events that are emitted
+     * @type {Object}
+     * @property {string} message Message event emitted for every message received
+     * @property {string} error error event emitted when encountering an error
+     * @property {string} unkown unkown event emitted when a client sends an event without a name
+     * @property {string} close close event emitted when the server closes
+     */
+    this.EVENTS = {
         message: '$message',
         error: '$error',
         unkown: '$unkown',
         close: '$close'
     };
 
-    var handlers = {};
-    var clients = [];
-
-    return {
-        on: on,
-        emit: emit,
-        availableEvents: EVENTS,
-        close: function() {
-            wss.close();
-            fireEvent(EVENTS.close);
-            clients = [];
-            handlers = {};
-        }
-    };
-
-    function on(event, handlerfn) {
+    /**
+     * Sets an event listener for event
+     * @type {Function}
+     * @param {string} event the event name
+     * @param {function} handler the event handler
+     */
+    this.on = function on(event, handlerfn) {
         if (typeof event !== 'string' || typeof handlerfn !== 'function') {
             throw new Error('Need a string as first argument and a function as second.');
         }
@@ -39,15 +53,14 @@ module.exports = function(wsConf) {
         } else {
             handlers[event] = [handlerfn];
         }
-    }
+    };
 
-    function onError(error) {
-        if (typeof error === 'undefined') {
-            fireEvent(EVENTS.error, error);
-        }
-    }
-
-    function emit(event, data) {
+    /**
+     * Emits an event
+     * @param {string} event the event name
+     * @param {(object|string|number|boolean)} the data to send
+     */
+    this.emit = function emit(event, data) {
         if (typeof event !== 'string' || typeof data === 'function') {
             throw new Error('Need a string as first argument and no function as second.');
         }
@@ -55,13 +68,30 @@ module.exports = function(wsConf) {
             event: event,
             data: data
         };
-        clients.forEach(client => client.send(JSON.stringify(message), onError));
+        clients.forEach(client => client.send(JSON.stringify(message), onError.bind(this)));
+    };
+    /**
+     * Close the server
+     * @description
+     * Closes the server and emits a close event
+     */
+    this.close = function close() {
+        wss.close();
+        fireEvent(this.EVENTS.close);
+        clients = [];
+        handlers = {};
+    };
+
+    function onError(error) {
+        if (typeof error === 'undefined') {
+            fireEvent(this.EVENTS.error, error);
+        }
     }
 
     function onConnection(ws) {
         clients.push(ws);
         ws.on('message', message => {
-            fireEvent(EVENTS.message, message);
+            fireEvent(this.EVENTS.message, message);
             var decoded;
             try {
                 decoded = JSON.parse(message);
@@ -69,7 +99,7 @@ module.exports = function(wsConf) {
 
             }
             if (typeof decoded !== 'object' || typeof decoded.event !== 'string' || typeof decoded.data === 'undefined') {
-                fireEvent(EVENTS.unkown, message);
+                fireEvent(this.EVENTS.unkown, message);
             } else {
                 fireEvent(decoded.event, decoded.data);
             }
@@ -84,4 +114,4 @@ module.exports = function(wsConf) {
             });
         }
     }
-};
+}

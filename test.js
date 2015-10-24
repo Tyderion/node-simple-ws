@@ -3,19 +3,29 @@ var chai = require('chai');
 var spies = require('chai-spies');
 chai.use(spies);
 var expect = chai.expect;
-var angularWebsockets = require('./');
+var AngularWebsockets = require('./');
 var WebSocket = require('ws');
 var port = 8888;
 
-var server = angularWebsockets({
+var server = new AngularWebsockets({
     port: port
 });
 
 beforeEach(function() {
     server.close();
-    server = angularWebsockets({
+    server = new AngularWebsockets({
         port: port
     });
+});
+
+it('should always return an instance of itself, even when called without new', function() {
+    expect(new AngularWebsockets({
+        port: 8000
+    })).to.be.instanceof(AngularWebsockets);
+    var noConstructor = AngularWebsockets;
+    expect(noConstructor({
+        port: 8000
+    })).to.be.instanceof(AngularWebsockets);
 });
 
 it('should connect', function(done) {
@@ -25,21 +35,21 @@ it('should connect', function(done) {
     });
 });
 
-describe('availableEvents', function() {
+describe('EVENTS', function() {
     it('should have exist and be an object', function() {
-        expect(typeof server.availableEvents).to.equal('object');
+        expect(typeof server.EVENTS).to.equal('object');
     });
     it('should have property \'close\' of type string', function() {
-        expect(typeof server.availableEvents.close).to.equal('string');
+        expect(typeof server.EVENTS.close).to.equal('string');
     });
     it('should have property \'error\' of type string', function() {
-        expect(typeof server.availableEvents.error).to.equal('string');
+        expect(typeof server.EVENTS.error).to.equal('string');
     });
     it('should have property \'unkown\' of type string', function() {
-        expect(typeof server.availableEvents.unkown).to.equal('string');
+        expect(typeof server.EVENTS.unkown).to.equal('string');
     });
     it('should have property \'message\' of type string', function() {
-        expect(typeof server.availableEvents.message).to.equal('string');
+        expect(typeof server.EVENTS.message).to.equal('string');
     });
 });
 
@@ -56,16 +66,16 @@ describe('close', function() {
             server.close();
         });
     });
-    it('should call on-\'server.availableEvents.close\'-listeners once when closing the server', function() {
+    it('should call on-\'server.EVENTS.close\'-listeners once when closing the server', function() {
         var spy = chai.spy();
-        server.on(server.availableEvents.close, spy);
+        server.on(server.EVENTS.close, spy);
         server.close();
         expect(spy).to.be.called.once();
     });
-    it('should call all on-server.availableEvents.close-listeners once when closing the server', function() {
+    it('should call all on-server.EVENTS.close-listeners once when closing the server', function() {
         var spy = chai.spy();
-        server.on(server.availableEvents.close, spy);
-        server.on(server.availableEvents.close, spy);
+        server.on(server.EVENTS.close, spy);
+        server.on(server.EVENTS.close, spy);
         server.close();
         expect(spy).to.be.called.twice();
     });
@@ -111,12 +121,12 @@ describe('on', function() {
             }));
         });
     });
-    it('should send event server.availableEvents.unkown when the data is not a string in the form { event: \'name\', data: \'data\'}', function(done) {
+    it('should send event server.EVENTS.unkown when the data is not a string in the form { event: \'name\', data: \'data\'}', function(done) {
         var client = new WebSocket('ws://localhost:' + port);
-        server.on(server.availableEvents.error, function() {
+        server.on(server.EVENTS.error, function() {
             done(new Error('$error should not be called'));
         });
-        server.on(server.availableEvents.unkown, function(data) {
+        server.on(server.EVENTS.unkown, function(data) {
             expect(data).to.equal('test');
             done();
         });
