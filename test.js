@@ -1,9 +1,7 @@
 'use strict';
-// var assert = require('assert');
 var chai = require('chai');
 var spies = require('chai-spies');
 chai.use(spies);
-// var should = chai.should();
 var expect = chai.expect;
 var angularWebsockets = require('./');
 var WebSocket = require('ws');
