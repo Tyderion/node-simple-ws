@@ -3,19 +3,29 @@ var chai = require('chai');
 var spies = require('chai-spies');
 chai.use(spies);
 var expect = chai.expect;
-var angularWebsockets = require('./');
+var AngularWebsockets = require('./');
 var WebSocket = require('ws');
 var port = 8888;
 
-var server = angularWebsockets({
+var server = new AngularWebsockets({
     port: port
 });
 
 beforeEach(function() {
     server.close();
-    server = angularWebsockets({
+    server = new AngularWebsockets({
         port: port
     });
+});
+
+it('should always return an instance of itself, even when called without new', function() {
+    expect(new AngularWebsockets({
+        port: 8000
+    })).to.be.instanceof(AngularWebsockets);
+    var noConstructor = AngularWebsockets;
+    expect(noConstructor({
+        port: 8000
+    })).to.be.instanceof(AngularWebsockets);
 });
 
 it('should connect', function(done) {
