@@ -25,6 +25,8 @@ module.exports = function(wsConf) {
         close: function() {
             wss.close();
             fireEvent(EVENTS.close);
+            clients = [];
+            handlers = {};
         }
     };
 
@@ -46,6 +48,9 @@ module.exports = function(wsConf) {
     }
 
     function emit(event, data) {
+        if (typeof event !== 'string' || typeof data === 'function') {
+            throw new Error('Need a string as first argument and no function as second.');
+        }
         var message = {
             event: event,
             data: data
@@ -74,7 +79,6 @@ module.exports = function(wsConf) {
     function fireEvent(event, data) {
         var handlerfns = handlers[event];
         if (typeof handlerfns !== 'undefined') {
-            // handlerfns[0].call(this, data);
             handlerfns.forEach(handler => {
                 handler.call(this, data);
             });

@@ -1,5 +1,5 @@
 'use strict';
-var assert = require('assert');
+// var assert = require('assert');
 var chai = require('chai');
 var spies = require('chai-spies');
 chai.use(spies);
@@ -27,9 +27,27 @@ it('should connect', function(done) {
     });
 });
 
+describe('availableEvents', function() {
+    it('should have exist and be an object', function() {
+        expect(typeof server.availableEvents).to.equal('object');
+    });
+    it('should have property \'close\' of type string', function() {
+        expect(typeof server.availableEvents.close).to.equal('string');
+    });
+    it('should have property \'error\' of type string', function() {
+        expect(typeof server.availableEvents.error).to.equal('string');
+    });
+    it('should have property \'unkown\' of type string', function() {
+        expect(typeof server.availableEvents.unkown).to.equal('string');
+    });
+    it('should have property \'message\' of type string', function() {
+        expect(typeof server.availableEvents.message).to.equal('string');
+    });
+});
+
 describe('close', function() {
-    it('should have a function \'close\'', function() {
-        assert(typeof server.close === 'function');
+    it('should have exist and be a function', function() {
+        expect(typeof server.close).to.equal('function');
     });
     it('should close the server connections', function(done) {
         var ws = new WebSocket('ws://localhost:' + port);
@@ -40,24 +58,24 @@ describe('close', function() {
             server.close();
         });
     });
-    it('should call on-\'close\'-listeners once when closing the server', function() {
+    it('should call on-\'server.availableEvents.close\'-listeners once when closing the server', function() {
         var spy = chai.spy();
-        server.on('$close', spy);
+        server.on(server.availableEvents.close, spy);
         server.close();
         expect(spy).to.be.called.once();
     });
-    it('should call all on-\'close\'-listeners once when closing the server', function() {
+    it('should call all on-server.availableEvents.close-listeners once when closing the server', function() {
         var spy = chai.spy();
-        server.on('$close', spy);
-        server.on('$close', spy);
+        server.on(server.availableEvents.close, spy);
+        server.on(server.availableEvents.close, spy);
         server.close();
         expect(spy).to.be.called.twice();
     });
 });
 
 describe('on', function() {
-    it('should have a function "on"', function() {
-        assert(typeof server.on === 'function');
+    it('should have exist and be a function', function() {
+        expect(typeof server.on).to.equal('function');
     });
     it('should accept only a string and a function as argument', function() {
         expect(server.on.bind(server, 5, 'doStuff')).to.throw('Need a string as first argument and a function as second.');
@@ -95,12 +113,12 @@ describe('on', function() {
             }));
         });
     });
-    it('should send event $unkown when the data is not a string in the form { event: \'name\', data: \'data\'}', function(done) {
+    it('should send event server.availableEvents.unkown when the data is not a string in the form { event: \'name\', data: \'data\'}', function(done) {
         var client = new WebSocket('ws://localhost:' + port);
-        server.on('$error', function() {
+        server.on(server.availableEvents.error, function() {
             done(new Error('$error should not be called'));
         });
-        server.on('$unkown', function(data) {
+        server.on(server.availableEvents.unkown, function(data) {
             expect(data).to.equal('test');
             done();
         });
@@ -109,19 +127,71 @@ describe('on', function() {
         });
     });
     it('should call all event-listeners when event is emitted from a client', function(done) {
-        var ws = new WebSocket('ws://localhost:' + port);
+        var client = new WebSocket('ws://localhost:' + port);
         var spy = chai.spy();
         server.on('myEvent', spy);
         server.on('myEvent', spy);
 
-        ws.on('open', function open() {
-            ws.send(JSON.stringify({
+        client.on('open', function open() {
+            client.send(JSON.stringify({
                 event: 'myEvent',
                 data: 'string'
             }));
-            ws.close();
+            client.close();
         });
-        ws.on('close', function() {
+        client.on('close', function() {
+            expect(spy).to.be.called.twice();
+            done();
+        });
+    });
+});
+
+describe('emit', function() {
+    it('should exist', function() {
+        expect(typeof server.emit).to.equal('function');
+    });
+    it('should accept only a string and enything except a function', function() {
+        expect(server.emit.bind(server, 5, 'doStuff')).to.throw('Need a string as first argument and no function as second.');
+        expect(server.emit.bind(server, '5', function() {})).to.throw('Need a string as first argument and no function as second.');
+        expect(server.emit.bind(server, '5', {
+            test: 1
+        })).not.to.throw();
+    });
+    it('should send events to a client in the form { event: \'name\', data: \'data\'}', function(done) {
+        var client = new WebSocket('ws://localhost:' + port);
+        client.on('open', function open() {
+            client.on('message', function(data) {
+                expect(JSON.parse.bind(JSON, data)).not.to.throw();
+                var decoded = JSON.parse(data);
+                expect(decoded.event).to.equal('myEvent');
+                expect(decoded.data).to.equal('data');
+                done();
+                server.close();
+            });
+            server.emit('myEvent', 'data');
+        });
+    });
+    it('should send events to all clients in the form { event: \'name\', data: \'data\'}', function(done) {
+        var client = new WebSocket('ws://localhost:' + port);
+        var client2 = new WebSocket('ws://localhost:' + port);
+
+        function onEvent(data) {
+            expect(JSON.parse.bind(JSON, data)).not.to.throw();
+            var decoded = JSON.parse(data);
+            expect(decoded.event).to.equal('myEvent');
+            expect(decoded.data).to.equal('data');
+            server.close();
+        }
+
+        var spy = chai.spy(onEvent);
+        client.on('open', function() {
+            client.on('message', spy);
+        });
+        client2.on('open', function() {
+            client2.on('message', spy);
+            server.emit('myEvent', 'data');
+        });
+        client.on('close', function() {
             expect(spy).to.be.called.twice();
             done();
         });
