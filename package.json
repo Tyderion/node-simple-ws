@@ -1,6 +1,6 @@
 {
   "name": "node-simple-ws",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Simple Wrapper over ws to use Websockets to easily with ng-websockets-apps",
   "license": "MIT",
   "repository": "tyderion/node-simple-ws",
