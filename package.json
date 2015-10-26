@@ -13,7 +13,8 @@
     "node": ">=0.10.0"
   },
   "scripts": {
-    "test": "xo --space=4 && mocha"
+    "test": "xo --space=4 && mocha",
+    "nocheck": "mocha --debug-brk"
   },
   "files": [
     "index.js"
@@ -22,6 +23,7 @@
     ""
   ],
   "dependencies": {
+    "uuid-lib": "0.0.6",
     "ws": "^0.8.0"
   },
   "devDependencies": {

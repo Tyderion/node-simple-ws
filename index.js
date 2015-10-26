@@ -1,6 +1,7 @@
 'use strict';
 
 var WebSocketServer = require('ws').Server;
+var uuid = require('uuid-lib');
 /**
  * Simple IMplementiation
  * @module node-simple-ws
@@ -21,6 +22,7 @@ function SimpleServer(wsConf) {
     var wss = new WebSocketServer(wsConf);
     var handlers = {};
     var clients = [];
+    var clientIdMap = {};
 
     wss.on('connection', onConnection.bind(this));
     /**
@@ -35,7 +37,8 @@ function SimpleServer(wsConf) {
         message: '$message',
         error: '$error',
         unkown: '$unkown',
-        close: '$close'
+        close: '$close',
+        connection: '$connection'
     };
 
     /**
@@ -59,8 +62,9 @@ function SimpleServer(wsConf) {
      * Emits an event
      * @param {string} event the event name
      * @param {(object|string|number|boolean)} the data to send
+     * @param {array|string} [clientIds] the IDs of the clients to emit the event to, if omitted, event gets sent to all clients
      */
-    this.emit = function emit(event, data) {
+    this.emit = function emit(event, data, clientIds) {
         if (typeof event !== 'string' || typeof data === 'function') {
             throw new Error('Need a string as first argument and no function as second.');
         }
@@ -68,7 +72,20 @@ function SimpleServer(wsConf) {
             event: event,
             data: data
         };
-        clients.forEach(client => client.send(JSON.stringify(message), onError.bind(this)));
+        var targets;
+        if (typeof clientIds !== 'undefined') {
+            if (!Array.isArray(clientIds)) {
+                clientIds = [clientIds];
+            }
+            targets = clientIds.map(id => clientIdMap[id]);
+        } else {
+            targets = clients;
+        }
+        targets.forEach(client => {
+            if (client.readyState === 1) {
+                client.send(JSON.stringify(message), onError.bind(this));
+            }
+        });
     };
     /**
      * Close the server
@@ -83,13 +100,16 @@ function SimpleServer(wsConf) {
     };
 
     function onError(error) {
-        if (typeof error === 'undefined') {
+        if (typeof error !== 'undefined') {
             fireEvent(this.EVENTS.error, error);
         }
     }
 
     function onConnection(ws) {
+        ws._id = uuid.raw();
         clients.push(ws);
+        clientIdMap[ws._id] = ws;
+        fireEvent(this.EVENTS.connection, ws._id);
         ws.on('message', message => {
             fireEvent(this.EVENTS.message, message);
             var decoded;
@@ -103,6 +123,10 @@ function SimpleServer(wsConf) {
             } else {
                 fireEvent(decoded.event, decoded.data);
             }
+        });
+        ws.on('close', function() {
+            clientIdMap[ws._id] = undefined;
+            clients.splice(clients.indexOf(ws), 1);
         });
     }
 

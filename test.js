@@ -28,11 +28,21 @@ it('should always return an instance of itself, even when called without new', f
         port: 8000
     })).to.be.instanceof(AngularWebsockets);
 });
-
-it('should connect', function(done) {
-    var ws = new WebSocket('ws://localhost:' + port);
-    ws.on('open', function open() {
-        done();
+describe('connection', function() {
+    it('should connect', function(done) {
+        var ws = new WebSocket('ws://localhost:' + port);
+        ws.on('open', function open() {
+            done();
+        });
+    });
+    it('should call on-\'server.EVENTS.connection\'-listeners when a new client connects', function(done) {
+        var spy = chai.spy();
+        server.on(server.EVENTS.connection, spy);
+        var ws = new WebSocket('ws://localhost:' + port);
+        ws.on('open', function open() {
+            expect(spy).to.be.called.once();
+            done();
+        });
     });
 });
 
@@ -51,6 +61,9 @@ describe('EVENTS', function() {
     });
     it('should have property \'message\' of type string', function() {
         expect(typeof server.EVENTS.message).to.equal('string');
+    });
+    it('should have property \'connection\' of type string', function() {
+        expect(typeof server.EVENTS.connection).to.equal('string');
     });
 });
 
@@ -202,6 +215,50 @@ describe('emit', function() {
         });
         client.on('close', function() {
             expect(spy).to.be.called.twice();
+            done();
+        });
+    });
+    it('should send events to the specified client ', function(done) {
+        var client = new WebSocket('ws://localhost:' + port);
+        var client2 = new WebSocket('ws://localhost:' + port);
+
+        function onEvent() {
+            server.close();
+        }
+        function fail() {
+            done(new Error('This should not have been called'));
+        }
+        var spy = chai.spy(onEvent);
+        var spy2 = chai.spy(fail);
+        var id;
+        server.on(server.EVENTS.connection, function(data) {
+            if (typeof id === 'undefined') {
+                id = data;
+            }
+        });
+        client.on('open', function() {
+            client.on('message', spy);
+        });
+        client2.on('open', function() {
+            client2.on('message', spy2);
+            server.emit('myEvent', 'data', id);
+        });
+        client.on('close', function() {
+            expect(spy).to.be.called.once();
+            expect(spy2).not.to.be.called();
+            done();
+        });
+    });
+    it('should not send data to closed clients', function(done) {
+        var client = new WebSocket('ws://localhost:' + port);
+        var spy = chai.spy();
+        server.on(server.EVENTS.error, spy);
+        client.on('open', function open() {
+            client.close();
+        });
+        client.on('close', function() {
+            expect(server.emit.bind(server, 'myEvent', 'test-data')).not.to.throw();
+            expect(spy).not.to.be.called();
             done();
         });
     });
